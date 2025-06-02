@@ -56,6 +56,15 @@ class NotificationID {
     id = ruleId * _ruleIdMultiplier + dateValue;
   }
 
+  factory NotificationID.fromId(int id) {
+    return NotificationID(
+      ruleId: id ~/ _ruleIdMultiplier,
+      yyyyMMdd: (id % _ruleIdMultiplier + _minYear * 10000)
+          .toString()
+          .padLeft(8, '0'),
+    );
+  }
+
   int get ruleId => id ~/ _ruleIdMultiplier;
 
   String get yyyyMMdd {
