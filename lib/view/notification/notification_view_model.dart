@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:push_notification_test/core/type/week_day.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
@@ -13,11 +14,51 @@ class NotificationPayload {
     required this.body,
     this.payload,
   });
+
+  bool get isEmpty => title.isEmpty || body.isEmpty;
 }
 
 class NotificationViewModel extends ChangeNotifier {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+
+  // ---
+
+  TimeOfDay _timeOfDay = TimeOfDay.now();
+
+  TimeOfDay get timeOfDay => _timeOfDay;
+
+  set timeOfDay(TimeOfDay value) {
+    _timeOfDay = value;
+    notifyListeners();
+  }
+
+  final Map<WeekDay, bool> _weekdays = {
+    WeekDay.sunday: false,
+    WeekDay.monday: false,
+    WeekDay.tuesday: false,
+    WeekDay.wednesday: false,
+    WeekDay.thursday: false,
+    WeekDay.friday: false,
+    WeekDay.saturday: false,
+  };
+
+  Map<WeekDay, bool> get weekdays => _weekdays;
+
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _bodyController = TextEditingController();
+
+  TextEditingController get titleController => _titleController;
+  TextEditingController get bodyController => _bodyController;
+
+  // ---
+
+  void toggleWeekday(WeekDay weekDay) {
+    _weekdays[weekDay] = !_weekdays[weekDay]!;
+    notifyListeners();
+  }
+
+  // ---
 
   Future<void> init() async {
     await initTimeZone();
@@ -59,7 +100,6 @@ class NotificationViewModel extends ChangeNotifier {
       channelDescription: 'Push notifications channel',
       importance: Importance.max,
       priority: Priority.high,
-      
     );
 
     final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -105,6 +145,24 @@ class NotificationViewModel extends ChangeNotifier {
       tzDateTime,
       _notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exact,
+    );
+  }
+
+  NotificationPayload get _notificationPayload => NotificationPayload(
+        title: titleController.text,
+        body: bodyController.text,
+      );
+
+  void showNotificationImmediately() {
+    if (_notificationPayload.isEmpty) return;
+    showNotification(_notificationPayload);
+  }
+
+  void showNotificationScheduled() {
+    if (_notificationPayload.isEmpty) return;
+    scheduleNotification(
+      _notificationPayload,
+      DateTime.now().add(Duration(seconds: 3)),
     );
   }
 }
