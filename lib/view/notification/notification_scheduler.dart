@@ -81,8 +81,10 @@ class NotificationScheduler {
     // 시작 시간 결정
     DateTime startTime;
     if (instances.isEmpty) {
-      // 첫 알림인 경우 현재 시간부터 시작
-      startTime = DateTime.now();
+      // 첫 알림인 경우 스케줄에 지정된 startDate 또는 DateTime.now() 중 더 먼저 오는 시간을 선택
+      startTime = rule.startDate.isAfter(DateTime.now())
+          ? rule.startDate
+          : DateTime.now();
     } else {
       // 기존 알림이 있는 경우 가장 최신 알림 시간부터 시작
       startTime = instances
