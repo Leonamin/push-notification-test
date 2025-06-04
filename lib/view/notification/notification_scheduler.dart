@@ -5,6 +5,7 @@ import 'package:push_notification_test/core/id/notification_id.dart';
 import 'package:push_notification_test/data/domain/notification_instance.dart';
 import 'package:push_notification_test/data/domain/notification_rule.dart';
 import 'package:push_notification_test/view/notification/notification_repository.dart';
+import 'package:push_notification_test/view/notification/notification_view_model.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
@@ -18,6 +19,30 @@ class NotificationScheduler {
   })  : _plugin = plugin,
         _repository = repository {
     _initializeTimeZone();
+  }
+
+  Future<void> initialize() async {
+    _initializeTimeZone();
+    await _initPlugin();
+    await scheduleRemainingNotifications();
+  }
+
+  Future<void> _initPlugin() async {
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const DarwinInitializationSettings iosSettings =
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+    await _plugin.initialize(initSettings);
   }
 
   void _initializeTimeZone() {
@@ -80,6 +105,15 @@ class NotificationScheduler {
 
   Future<List<PendingNotificationRequest>> _getPendingNotifications() async =>
       await _plugin.pendingNotificationRequests();
+
+  Future<void> showNotification(NotificationPayload payload) async {
+    await _plugin.show(
+      payload.id,
+      payload.title,
+      payload.body,
+      _notificationDetails,
+    );
+  }
 
   /// 언제 실행됨?:
   /// 1. 알림 규칙 생성 시

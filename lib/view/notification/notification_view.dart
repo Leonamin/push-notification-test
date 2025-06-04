@@ -25,7 +25,7 @@ class _NotificationViewState extends State<NotificationView> {
   void initState() {
     super.initState();
     _notificationViewModel = NotificationViewModel(scheduler: _scheduler);
-    _notificationViewModel.initializeNotifications();
+    _scheduler.initialize();
 
     _notificationViewModel.addListener(() {
       setState(() {});

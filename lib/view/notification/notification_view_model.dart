@@ -3,8 +3,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:push_notification_test/core/type/week_day.dart';
 import 'package:push_notification_test/view/notification/0_components/notification_list_view.dart';
 import 'package:push_notification_test/view/notification/0_components/notification_rule_list_view.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
 import 'package:push_notification_test/view/notification/notification_scheduler.dart';
 
 class NotificationPayload {
@@ -71,91 +69,11 @@ class NotificationViewModel extends ChangeNotifier {
   // ---
 
   Future<void> init() async {
-    await initTimeZone();
-    await initializeNotifications();
-  }
-
-  Future<void> initTimeZone() async {
-    try {
-      tz.initializeTimeZones();
-    } catch (e) {
-      throw Exception('Failed to initialize time zones: $e');
-    }
-  }
-
-  Future<void> initializeNotifications() async {
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    final DarwinInitializationSettings iosSettings =
-        DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-
-    final InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-
-    await flutterLocalNotificationsPlugin.initialize(initSettings);
-  }
-
-  NotificationDetails get _notificationDetails {
-    final AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-      'push_channel',
-      'Push Notifications',
-      channelDescription: 'Push notifications channel',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
-
-    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    return NotificationDetails(android: androidDetails, iOS: iosDetails);
+    await scheduler.initialize();
   }
 
   int get _generateNotificationId =>
       DateTime.now().millisecondsSinceEpoch ~/ 1000;
-
-  Future<void> showNotification(NotificationPayload payload) async {
-    final notificationId = _generateNotificationId;
-
-    await flutterLocalNotificationsPlugin.show(
-      notificationId,
-      payload.title,
-      payload.body,
-      _notificationDetails,
-      payload: payload.payload,
-    );
-  }
-
-  tz.TZDateTime _dateTimeToTZDateTime(DateTime dateTime) {
-    final location = tz.getLocation('Asia/Seoul');
-    return tz.TZDateTime.from(dateTime, location);
-  }
-
-  Future<void> scheduleNotification(
-    NotificationPayload payload,
-    DateTime scheduledTime,
-  ) async {
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      payload.id,
-      payload.title,
-      payload.body,
-      _dateTimeToTZDateTime(scheduledTime),
-      _notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
-  }
 
   NotificationPayload get _notificationPayload => NotificationPayload(
         id: _generateNotificationId,
@@ -163,9 +81,10 @@ class NotificationViewModel extends ChangeNotifier {
         body: bodyController.text,
       );
 
-  void showNotificationImmediately() {
+  void showNotificationImmediately() async {
     if (_notificationPayload.isEmpty) return;
-    showNotification(_notificationPayload);
+
+    await scheduler.showNotification(_notificationPayload);
   }
 
   void showNotificationScheduled() {
