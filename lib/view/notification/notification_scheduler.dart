@@ -24,6 +24,15 @@ class NotificationScheduler {
     tz.initializeTimeZones();
   }
 
+  /// 앱 실행 시 예약된 알림 규칙이 있으면 그 알림 규칙에 따라 알림을 생성한다
+  Future<void> scheduleRemainingNotifications() async {
+    final rules = await _repository.getRules();
+
+    for (final rule in rules) {
+      await scheduleNotification(rule);
+    }
+  }
+
   /// 1개의 규칙당 최대로 존재할 수 있는 알림 갯수
   static const _maxNotificationCount = 5;
 
@@ -89,8 +98,6 @@ class NotificationScheduler {
 
     int createCount = _maxNotificationCount - pendingInstances.length;
 
-    print('생성해야하는 알림 개수: $createCount');
-
     // 시작 시간 결정
     DateTime startTime;
     if (instances.isEmpty) {
@@ -105,8 +112,6 @@ class NotificationScheduler {
           .scheduledTime;
     }
 
-    print('시작 날짜: ${startTime.toString()}');
-
     while (true) {
       if (createCount <= 0) {
         break;
@@ -115,8 +120,10 @@ class NotificationScheduler {
       // 생성
       final nextScheduledTime = _findNextScheduledTime(rule, startTime);
 
-      print("다음 예약 시간: ${nextScheduledTime.toString()}");
-      print("종료 날짜: ${rule.endDate.toString()}");
+      if (nextScheduledTime.isBefore(DateTime.now())) {
+        startTime = startTime.add(const Duration(days: 1));
+        continue;
+      }
 
       if (nextScheduledTime.isAfter(rule.endDate)) {
         break;
@@ -138,8 +145,7 @@ class NotificationScheduler {
             UILocalNotificationDateInterpretation.absoluteTime,
       );
 
-      final instance =
-          await _repository.createInstance(NotificationInstanceCreateRequest(
+      await _repository.createInstance(NotificationInstanceCreateRequest(
         id: notificationId,
         ruleId: rule.id,
         description: rule.description,
@@ -147,16 +153,16 @@ class NotificationScheduler {
       ));
 
       // 다음 반복을 위해 시작 시간 업데이트
-      startTime = nextScheduledTime;
+      startTime = nextScheduledTime.add(const Duration(days: 1));
       createCount--;
     }
   }
 
-  /// target을 기준으로 rule에 따라 다음 알림 시간을 가져온다
+  /// target을 기준으로 rule에 따라 가장 가까운 다음 알림 시간을 가져온다
   /// 현재는 요일별 알림 규칙이므로 요일별로 알림 시간을 가져온다
   /// 예를들어 일, 수, 금 이렇게 알림이 설정되어있고 target이 월요일이라면 화요일이 아닌 수요일 알림을 가져온다
   DateTime _findNextScheduledTime(NotificationRule rule, DateTime target) {
-    final nextDay = target.add(const Duration(days: 1));
+    final nextDay = target;
     final nextWeekday = nextDay.weekday;
 
     if (rule.weekdays.contains(nextWeekday) || rule.weekdays.isEmpty) {
@@ -169,7 +175,7 @@ class NotificationScheduler {
       );
     }
 
-    return _findNextScheduledTime(rule, nextDay);
+    return _findNextScheduledTime(rule, nextDay.add(const Duration(days: 1)));
   }
 
   Future<List<NotificationInstance>> _getPendingInstances(int ruleId) async {
