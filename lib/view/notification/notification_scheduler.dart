@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:push_notification_test/core/extension/date_time_ext.dart';
+import 'package:push_notification_test/core/id/notification_id.dart';
 import 'package:push_notification_test/data/domain/notification_instance.dart';
 import 'package:push_notification_test/data/domain/notification_rule.dart';
 import 'package:push_notification_test/view/notification/notification_repository.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class NotificationScheduler {
   final FlutterLocalNotificationsPlugin _plugin;
@@ -13,7 +16,13 @@ class NotificationScheduler {
     required FlutterLocalNotificationsPlugin plugin,
     required NotificationRepository repository,
   })  : _plugin = plugin,
-        _repository = repository;
+        _repository = repository {
+    _initializeTimeZone();
+  }
+
+  void _initializeTimeZone() {
+    tz.initializeTimeZones();
+  }
 
   /// 1개의 규칙당 최대로 존재할 수 있는 알림 갯수
   static const _maxNotificationCount = 5;
@@ -24,6 +33,7 @@ class NotificationScheduler {
   static const _maxNotiRuleCount = 12;
 
   void scheduleNotiRule({
+    required String title,
     required String description,
     required DateTime startDate,
     required DateTime endDate,
@@ -37,6 +47,7 @@ class NotificationScheduler {
     }
 
     final rule = await _repository.createRule(NotificationRuleCreateRequest(
+      title: title,
       description: description,
       startDate: startDate,
       endDate: endDate,
@@ -78,6 +89,8 @@ class NotificationScheduler {
 
     int createCount = _maxNotificationCount - pendingInstances.length;
 
+    print('생성해야하는 알림 개수: $createCount');
+
     // 시작 시간 결정
     DateTime startTime;
     if (instances.isEmpty) {
@@ -92,6 +105,8 @@ class NotificationScheduler {
           .scheduledTime;
     }
 
+    print('시작 날짜: ${startTime.toString()}');
+
     while (true) {
       if (createCount <= 0) {
         break;
@@ -100,18 +115,36 @@ class NotificationScheduler {
       // 생성
       final nextScheduledTime = _findNextScheduledTime(rule, startTime);
 
+      print("다음 예약 시간: ${nextScheduledTime.toString()}");
+      print("종료 날짜: ${rule.endDate.toString()}");
+
       if (nextScheduledTime.isAfter(rule.endDate)) {
         break;
       }
 
+      final notificationId = NotificationID(
+        ruleId: rule.id,
+        yyyyMMdd: nextScheduledTime.yyyyMMdd,
+      );
+
       await _plugin.zonedSchedule(
-        nextScheduledTime.hashCode,
+        notificationId.id,
         rule.title,
         rule.description,
         _dateTimeToTZDateTime(nextScheduledTime),
         _notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exact,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
+
+      final instance =
+          await _repository.createInstance(NotificationInstanceCreateRequest(
+        id: notificationId,
+        ruleId: rule.id,
+        description: rule.description,
+        scheduledTime: nextScheduledTime,
+      ));
 
       // 다음 반복을 위해 시작 시간 업데이트
       startTime = nextScheduledTime;
@@ -165,7 +198,7 @@ class NotificationScheduler {
   // Don't care about this
 
   NotificationDetails get _notificationDetails {
-    final AndroidNotificationDetails androidDetails =
+    const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'push_channel',
       'Push Notifications',
@@ -174,17 +207,33 @@ class NotificationScheduler {
       priority: Priority.high,
     );
 
-    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
 
-    return NotificationDetails(android: androidDetails, iOS: iosDetails);
+    return const NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
   tz.TZDateTime _dateTimeToTZDateTime(DateTime dateTime) {
     final location = tz.getLocation('Asia/Seoul');
     return tz.TZDateTime.from(dateTime, location);
+  }
+
+  Future<List<NotificationRule>> getRules() async {
+    return await _repository.getRules();
+  }
+
+  Future<List<NotificationInstance>> getInstances() async {
+    return await _repository.getAllInstances();
+  }
+
+  Future<void> deleteAllRules() async {
+    await _repository.deleteAllRules();
+  }
+
+  Future<void> deleteAllInstances() async {
+    await _repository.deleteAllInstances();
   }
 }

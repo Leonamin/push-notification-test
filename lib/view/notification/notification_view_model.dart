@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:push_notification_test/core/type/week_day.dart';
+import 'package:push_notification_test/view/notification/0_components/notification_list_view.dart';
+import 'package:push_notification_test/view/notification/0_components/notification_rule_list_view.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:push_notification_test/view/notification/notification_scheduler.dart';
 
 class NotificationPayload {
+  final int id;
   final String title;
   final String body;
   final String? payload;
 
   NotificationPayload({
+    required this.id,
     required this.title,
     required this.body,
     this.payload,
@@ -19,8 +24,13 @@ class NotificationPayload {
 }
 
 class NotificationViewModel extends ChangeNotifier {
+  final NotificationScheduler scheduler;
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+
+  NotificationViewModel({
+    required this.scheduler,
+  });
 
   // ---
 
@@ -135,20 +145,20 @@ class NotificationViewModel extends ChangeNotifier {
     NotificationPayload payload,
     DateTime scheduledTime,
   ) async {
-    final notificationId = _generateNotificationId;
-    final tzDateTime = _dateTimeToTZDateTime(scheduledTime);
-
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      notificationId,
+      payload.id,
       payload.title,
       payload.body,
-      tzDateTime,
+      _dateTimeToTZDateTime(scheduledTime),
       _notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exact,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
   NotificationPayload get _notificationPayload => NotificationPayload(
+        id: _generateNotificationId,
         title: titleController.text,
         body: bodyController.text,
       );
@@ -160,9 +170,56 @@ class NotificationViewModel extends ChangeNotifier {
 
   void showNotificationScheduled() {
     if (_notificationPayload.isEmpty) return;
-    scheduleNotification(
-      _notificationPayload,
-      DateTime.now().add(Duration(seconds: 3)),
+
+    final List<int> weekdays = _weekdays.entries
+        .map((e) => e.value ? e.key.index : null)
+        .nonNulls
+        .toList();
+
+    scheduler.scheduleNotiRule(
+      title: _notificationPayload.title,
+      description: _notificationPayload.body,
+      startDate: DateTime.now(),
+      endDate: DateTime.now().add(const Duration(days: 30)),
+      timeOfDay: timeOfDay,
+      weekdays: weekdays,
     );
+  }
+
+  // ---
+  void showNotificationRules(BuildContext context) {
+    scheduler.getRules().then((rules) {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return Dialog(
+              child: NotificationRuleListView(items: rules),
+            );
+          },
+        );
+      }
+    });
+  }
+
+  void showNotifications(BuildContext context) {
+    scheduler.getInstances().then((instances) {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return Dialog(
+              child: NotificationListView(items: instances),
+            );
+          },
+        );
+      }
+    });
+  }
+
+  void deleteAllNotification() {
+    flutterLocalNotificationsPlugin.cancelAll();
+    scheduler.deleteAllRules();
+    scheduler.deleteAllInstances();
   }
 }

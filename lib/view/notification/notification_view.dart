@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:push_notification_test/core/type/week_day.dart';
+import 'package:push_notification_test/data/repository/notification_repository_impl.dart';
 import 'package:push_notification_test/view/0_components/button/checkbox_button.dart';
 import 'package:push_notification_test/view/0_components/picker/time_picker.dart';
+import 'package:push_notification_test/view/notification/notification_scheduler.dart';
 import 'package:push_notification_test/view/notification/notification_view_model.dart';
 
 class NotificationView extends StatefulWidget {
@@ -12,12 +15,17 @@ class NotificationView extends StatefulWidget {
 }
 
 class _NotificationViewState extends State<NotificationView> {
-  final NotificationViewModel _notificationViewModel = NotificationViewModel();
+  late final NotificationScheduler _scheduler = NotificationScheduler(
+    plugin: FlutterLocalNotificationsPlugin(),
+    repository: NotificationRepositoryImpl(),
+  );
+  late final NotificationViewModel _notificationViewModel;
 
   @override
   void initState() {
     super.initState();
-    _notificationViewModel.init();
+    _notificationViewModel = NotificationViewModel(scheduler: _scheduler);
+    _notificationViewModel.initializeNotifications();
 
     _notificationViewModel.addListener(() {
       setState(() {});
@@ -37,6 +45,7 @@ class _NotificationViewState extends State<NotificationView> {
               children: [
                 ScrollTimePicker(
                   initialTime: _notificationViewModel.timeOfDay,
+                  minuteInterval: 1,
                   onTimeChanged: (time) {
                     _notificationViewModel.timeOfDay = time;
                   },
@@ -79,15 +88,25 @@ class _NotificationViewState extends State<NotificationView> {
                       onPressed: () {
                         _notificationViewModel.showNotificationScheduled();
                       },
-                      child: const Text('테스트 예약 전송 3초뒤'),
+                      child: const Text('주기적으로 예약 전송'),
                     ),
                     ElevatedButton(
-                      onPressed: () {},
-                      child: const Text('진짜 주기적으로 예약 전송'),
+                      onPressed: () {
+                        _notificationViewModel.showNotificationRules(context);
+                      },
+                      child: const Text('예약 전송 목록 조회'),
                     ),
                     ElevatedButton(
-                      onPressed: () {},
-                      child: const Text('알림 전부 삭제'),
+                      onPressed: () {
+                        _notificationViewModel.showNotifications(context);
+                      },
+                      child: const Text('예약 목록 조회'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        _notificationViewModel.deleteAllNotification();
+                      },
+                      child: const Text('DB 및 예약 알림 삭제'),
                     ),
                   ],
                 )
