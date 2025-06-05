@@ -7,6 +7,16 @@ enum WeekDay {
   friday,
   saturday;
 
+  int get weekdayNumber => switch (this) {
+        monday => 1,
+        tuesday => 2,
+        wednesday => 3,
+        thursday => 4,
+        friday => 5,
+        saturday => 6,
+        sunday => 7,
+      };
+
   String get name => switch (this) {
         sunday => '일요일',
         monday => '월요일',

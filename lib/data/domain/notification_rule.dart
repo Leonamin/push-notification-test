@@ -10,8 +10,8 @@ class NotificationRule {
   final TimeOfDay timeOfDay;
 
   /// 요일 모드일 때
-  final List<int>
-      weekdays; // 0: 일요일, 1: 월요일, 2: 화요일, 3: 수요일, 4: 목요일, 5: 금요일, 6: 토요일
+  /// 1: 월요일, 2: 화요일, 3: 수요일, 4: 목요일, 5: 금요일, 6: 토요일, 7: 일요일
+  final List<int> weekdays;
 
   /// 알림 규칙 생성 시 startDate, endDate는 시간을 제외한 날짜만 저장한다.
   /// 시간은 timeOfDay에 저장한다.
@@ -25,4 +25,9 @@ class NotificationRule {
     required this.weekdays,
   })  : startDate = startDate.toLocalize(),
         endDate = endDate.toLocalize();
+
+  @override
+  String toString() {
+    return 'NotificationRule(id: $id, title: $title, description: $description, startDate: $startDate, endDate: $endDate, timeOfDay: $timeOfDay, weekdays: $weekdays)';
+  }
 }

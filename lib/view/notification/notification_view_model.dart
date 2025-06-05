@@ -91,7 +91,7 @@ class NotificationViewModel extends ChangeNotifier {
     if (_notificationPayload.isEmpty) return;
 
     final List<int> weekdays = _weekdays.entries
-        .map((e) => e.value ? e.key.index : null)
+        .map((e) => e.value ? e.key.weekdayNumber : null)
         .nonNulls
         .toList();
 

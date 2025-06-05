@@ -59,7 +59,7 @@ class NotificationScheduler {
   }
 
   /// 1개의 규칙당 최대로 존재할 수 있는 알림 갯수
-  static const _maxNotificationCount = 5;
+  static const _maxNotificationCount = 6;
 
   /// 최대 알림 규칙 갯수
   /// iOS의 알림 개수 제한은 64개이다
@@ -141,29 +141,17 @@ class NotificationScheduler {
           ? rule.startDate
           : DateTime.now();
     } else {
-      // 기존 알림이 있는 경우 가장 최신 알림 시간부터 시작
+      // 기존 알림이 있는 경우 가장 최신 알림 시간 + 1일 부터 시작
       startTime = instances
           .reduce((a, b) => a.scheduledTime.isAfter(b.scheduledTime) ? a : b)
           .scheduledTime;
+      startTime = startTime.add(const Duration(days: 1));
     }
 
-    while (true) {
-      if (createCount <= 0) {
-        break;
-      }
+    final nextScheduledTimes =
+        _findNextScheduledTimes(rule, startTime, createCount);
 
-      // 생성
-      final nextScheduledTime = _findNextScheduledTime(rule, startTime);
-
-      if (nextScheduledTime.isBefore(DateTime.now())) {
-        startTime = startTime.add(const Duration(days: 1));
-        continue;
-      }
-
-      if (nextScheduledTime.isAfter(rule.endDate)) {
-        break;
-      }
-
+    for (final nextScheduledTime in nextScheduledTimes) {
       final notificationId = NotificationID(
         ruleId: rule.id,
         yyyyMMdd: nextScheduledTime.yyyyMMdd,
@@ -186,31 +174,77 @@ class NotificationScheduler {
         description: rule.description,
         scheduledTime: nextScheduledTime,
       ));
-
-      // 다음 반복을 위해 시작 시간 업데이트
-      startTime = nextScheduledTime.add(const Duration(days: 1));
-      createCount--;
     }
   }
 
-  /// target을 기준으로 rule에 따라 가장 가까운 다음 알림 시간을 가져온다
-  /// 현재는 요일별 알림 규칙이므로 요일별로 알림 시간을 가져온다
-  /// 예를들어 일, 수, 금 이렇게 알림이 설정되어있고 target이 월요일이라면 화요일이 아닌 수요일 알림을 가져온다
-  DateTime _findNextScheduledTime(NotificationRule rule, DateTime target) {
-    final nextDay = target;
-    final nextWeekday = nextDay.weekday;
+  List<DateTime> _findNextScheduledTimes(
+    NotificationRule rule,
+    DateTime target,
+    int count,
+  ) {
+    final nextScheduledTimes = <DateTime>[];
+    // target 은 다음과 같이 초기화 될것임
+    // 1. 알림 규칙 최초 생성이라 DateTime.now()
+    // 2. 계속 늘리는 거라 현재까지 생성된 마지막 알림 시간
 
-    if (rule.weekdays.contains(nextWeekday) || rule.weekdays.isEmpty) {
-      return DateTime(
-        nextDay.year,
-        nextDay.month,
-        nextDay.day,
+    int loopCount = 0;
+
+    /// 알림규칙에 따라 생성 가능한 날짜인지 확인
+    bool scheduledDow(DateTime date) {
+      if (rule.weekdays.isEmpty) {
+        return true;
+      }
+
+      if (rule.weekdays.contains(date.weekday)) {
+        return true;
+      }
+
+      return false;
+    }
+
+    /// 알림은 현재 시간보다 이전이거나 같으면 생성 불가
+    bool canSchedule(DateTime date) {
+      final now = DateTime.now();
+
+      if (date.isAtSameMomentAs(now)) {
+        return false;
+      }
+
+      if (date.isBefore(now)) {
+        return false;
+      }
+
+      return true;
+    }
+
+    DateTime startDate = target;
+
+    while (true) {
+      if (loopCount >= count) {
+        break;
+      }
+
+      final nextScheduleTime = DateTime(
+        startDate.year,
+        startDate.month,
+        startDate.day,
         rule.timeOfDay.hour,
         rule.timeOfDay.minute,
       );
-    }
 
-    return _findNextScheduledTime(rule, nextDay.add(const Duration(days: 1)));
+      // 현재 시간과 같으면 다음 시간으로 넘어간다
+      if (!canSchedule(nextScheduleTime)) {
+        startDate = startDate.add(const Duration(days: 1));
+        continue;
+      }
+
+      if (scheduledDow(nextScheduleTime)) {
+        nextScheduledTimes.add(nextScheduleTime);
+        loopCount++;
+      }
+      startDate = startDate.add(const Duration(days: 1));
+    }
+    return nextScheduledTimes;
   }
 
   Future<List<NotificationInstance>> _getPendingInstances(int ruleId) async {

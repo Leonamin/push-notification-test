@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:push_notification_test/view/notification/notification_view.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  runApp(const MyApp());
+  runZonedGuarded(() {
+    WidgetsFlutterBinding.ensureInitialized();
+    runApp(const MyApp());
+  }, (error, stackTrace) {
+    print('error: $error');
+    print('stackTrace: $stackTrace');
+  });
 }
 
 class MyApp extends StatelessWidget {
