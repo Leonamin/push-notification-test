@@ -101,6 +101,7 @@ class NotificationScheduler {
     }
 
     await _repository.deleteRule(ruleId);
+    await _repository.deleteInstanceByRuleId(ruleId);
   }
 
   Future<List<PendingNotificationRequest>> _getPendingNotifications() async =>

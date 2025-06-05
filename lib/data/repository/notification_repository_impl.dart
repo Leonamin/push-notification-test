@@ -175,6 +175,16 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
+  Future<void> deleteInstanceByRuleId(int ruleId) async {
+    final db = await database;
+    await db.delete(
+      _tableInstances,
+      where: 'rule_id = ?',
+      whereArgs: [ruleId],
+    );
+  }
+
+  @override
   Future<void> deleteAllInstances() async {
     final db = await database;
     await db.delete(_tableInstances);

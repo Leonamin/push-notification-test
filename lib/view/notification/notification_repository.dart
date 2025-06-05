@@ -49,6 +49,8 @@ abstract class NotificationRepository {
 
   Future<void> deleteInstance(int id);
 
+  Future<void> deleteInstanceByRuleId(int ruleId);
+
   Future<void> deleteAllInstances();
 
   Future<List<NotificationInstance>> getInstancesByRuleId(int ruleId);
