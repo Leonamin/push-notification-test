@@ -6,6 +6,7 @@ import 'package:push_notification_test/view/0_components/button/checkbox_button.
 import 'package:push_notification_test/view/0_components/picker/time_picker.dart';
 import 'package:push_notification_test/view/notification/notification_scheduler.dart';
 import 'package:push_notification_test/view/notification/notification_view_model.dart';
+import 'package:push_notification_test/view/notification/scheduled_notification_list_view.dart';
 
 class NotificationView extends StatefulWidget {
   const NotificationView({super.key});
@@ -107,6 +108,18 @@ class _NotificationViewState extends State<NotificationView> {
                         _notificationViewModel.deleteAllNotification();
                       },
                       child: const Text('DB 및 예약 알림 삭제'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const ScheduledNotificationListView(),
+                          ),
+                        );
+                      },
+                      child: const Text('예약 목록 조회'),
                     ),
                   ],
                 )
